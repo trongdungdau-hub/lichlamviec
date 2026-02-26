@@ -147,8 +147,8 @@
         onMondayChange(null);
         resetBtn.addEventListener('click', resetAllDays);
 
-        // ===== ĐÃ CẬP NHẬT URL CHÍNH XÁC =====
-        const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwFa7elzanzIcKNIDVQHToNPrn_yaLGG17lu6e_jF7GGXn4U94s6Qgq2YiXyjR9sVQs/exec';
+        // ===== URL ĐÃ ĐƯỢC CẬP NHẬT CHÍNH XÁC =====
+        const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbz8L0V_oSSB1XVe7tSkReFC-ChSRMIFOifxn0g0QjXK4mtS6vBDDX5mOR_iRSKmyvEP/exec';
 
         submitBtn.addEventListener('click', async function() {
             if(calculateTotal() > MAX_DAYS) { alert('Tổng ngày vượt quá 5,5!'); return; }
@@ -182,10 +182,10 @@
                     successMsg.textContent = '✅ Gửi thành công!';
                     setTimeout(()=>successMsg.style.display='none', 3000);
                 } else {
-                    alert('Gửi thất bại');
+                    alert('Gửi thất bại: ' + (result.error || 'Lỗi không xác định'));
                 }
             } catch(e) {
-                alert('Lỗi kết nối');
+                alert('Lỗi kết nối: ' + e.message);
             }
         });
     })();
