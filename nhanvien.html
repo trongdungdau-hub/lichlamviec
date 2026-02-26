@@ -1,0 +1,194 @@
+<!-- nhanvien.html -->
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <title>Xếp lịch làm việc</title>
+    <style>
+        /* Toàn bộ style giữ nguyên như trong hướng dẫn trước */
+        * { box-sizing: border-box; font-family: 'Segoe UI', sans-serif; }
+        body { background: linear-gradient(145deg, #f0f5fa, #e2ebf3); min-height: 100vh; display: flex; justify-content: center; align-items: center; padding: 16px; }
+        .card { max-width: 1200px; width: 100%; background: white; border-radius: 32px; padding: 32px 24px; box-shadow: 0 20px 40px rgba(0,20,40,0.1); }
+        h2 { font-size: 28px; color: #0b2b4b; margin: 0 0 8px; }
+        .sub { border-left:4px solid #2a7faa; padding-left:18px; background:#e8f0f9; border-radius:0 20px 20px 0; min-height:1px; margin-bottom:28px;}
+        .week-picker { background: #f2f7fd; border-radius: 60px; padding: 20px 24px; margin-bottom: 30px; display: flex; flex-wrap: wrap; gap: 20px; align-items: center; }
+        .calendar { display: grid; grid-template-columns: repeat(7,1fr); gap: 12px; margin: 30px 0; }
+        .day-card { background: white; border-radius: 24px; border: 1px solid #dde9f2; overflow: hidden; }
+        .day-header { background: #e3eff9; padding: 12px; text-align: center; font-weight: 700; border-bottom: 1px solid #bdd6e8; }
+        .day-body { padding: 18px 8px; background: #f9fcff; }
+        select { width: 100%; padding: 8px; border-radius: 30px; border: 1px solid #b0c8dd; background: white; }
+        .summary { display: grid; grid-template-columns: repeat(auto-fit,minmax(130px,1fr)); gap: 16px; background: #eaf3fb; border-radius: 48px; padding: 24px; margin: 20px 0; }
+        .total-section { background: #f5faff; border-radius: 40px; padding: 16px 24px; display: flex; justify-content: space-between; flex-wrap: wrap; border: 1px solid #c7dfff; }
+        .warning-message { background: #f8d7da; color: #a11f2c; border-radius: 60px; padding: 14px 25px; display: none; }
+        .button-group { display: flex; gap: 15px; margin-top: 20px; }
+        button { background: linear-gradient(145deg,#1b4f72,#144a6f); color: white; border: none; padding: 18px 32px; border-radius: 60px; flex: 1; font-size: 20px; cursor: pointer; }
+        .reset-btn { background: #6c757d; }
+        .success-message { display: none; background: #d1ecf1; color: #0c5460; padding: 16px; border-radius: 60px; text-align: center; margin-top: 20px; }
+    </style>
+</head>
+<body>
+<div class="card">
+    <h2>🗓️ XẾP LỊCH LÀM VIỆC</h2>
+    <div class="sub"></div>
+
+    <div class="week-picker">
+        <label for="mondayPicker">📅 Chọn thứ 2 của tuần:</label>
+        <input type="date" id="mondayPicker">
+        <div class="week-info" id="weekRange"></div>
+    </div>
+
+    <div class="calendar" id="weekCalendar"></div>
+
+    <div class="total-section">
+        <span class="total-label">📊 Tổng số ngày (quy đổi):</span>
+        <span class="total-value" id="totalDays">0.0</span>
+    </div>
+    <div id="warningBox" class="warning-message">⚠️ Tổng số ngày vượt quá 5,5! Vui lòng điều chỉnh lại.</div>
+
+    <div class="summary" id="summaryStats"></div>
+
+    <div class="button-group">
+        <button id="submitBtn">📨 Gửi yêu cầu</button>
+        <button id="resetBtn" class="reset-btn">🔄 Đặt lại</button>
+    </div>
+    <div id="successMessage" class="success-message"></div>
+    <div class="footer-note" style="text-align:center; color:#607d8b; margin-top:24px;">* Sau khi gửi, quản lý sẽ nhận được dữ liệu.</div>
+</div>
+
+<script>
+    (function() {
+        const STATUSES = ['tu-do','lam-sang','lam-chieu','nua-ca-sang','nua-ca-chieu','nghi-ca','nghi-phep'];
+        const STATUS_LABELS = {
+            'tu-do':'Tự do','lam-sang':'Làm sáng','lam-chieu':'Làm chiều',
+            'nua-ca-sang':'Nửa ca sáng','nua-ca-chieu':'Nửa ca chiều',
+            'nghi-ca':'Nghỉ ca','nghi-phep':'Nghỉ phép'
+        };
+        const WEIGHTS = {
+            'tu-do':1.0, 'lam-sang':1.0, 'lam-chieu':1.0,
+            'nua-ca-sang':0.5, 'nua-ca-chieu':0.5,
+            'nghi-ca':0.0, 'nghi-phep':1.0
+        };
+        const SUMMARY_COLORS = {
+            'tu-do':'#d5e8d4','lam-sang':'#fff2cc','lam-chieu':'#fce5cd',
+            'nua-ca-sang':'#d0e0e3','nua-ca-chieu':'#e1d5e7',
+            'nghi-ca':'#f4cccc','nghi-phep':'#c9daf8'
+        };
+        const MAX_DAYS = 5.5;
+
+        let currentMonday, weekDays = [];
+        const mondayPicker = document.getElementById('mondayPicker');
+        const weekRange = document.getElementById('weekRange');
+        const calendarEl = document.getElementById('weekCalendar');
+        const summaryEl = document.getElementById('summaryStats');
+        const totalSpan = document.getElementById('totalDays');
+        const warningBox = document.getElementById('warningBox');
+        const submitBtn = document.getElementById('submitBtn');
+        const resetBtn = document.getElementById('resetBtn');
+        const successMsg = document.getElementById('successMessage');
+
+        function formatDateVN(d) { return d.toLocaleDateString('vi-VN',{day:'2-digit',month:'2-digit'}); }
+        function getMondayOfWeek(d) { let day=d.getDay(); let diff=(day===0)?6:day-1; let m=new Date(d); m.setDate(m.getDate()-diff); m.setHours(0,0,0,0); return m; }
+        function generateWeekDays(m) { let days=[]; for(let i=0;i<7;i++){ let d=new Date(m); d.setDate(m.getDate()+i); days.push({date:d,status:'tu-do'}); } return days; }
+        function calculateTotal() { return weekDays.reduce((acc,day)=>acc+WEIGHTS[day.status],0); }
+
+        function updateTotalAndWarning() {
+            let total = calculateTotal();
+            totalSpan.textContent = total.toFixed(2);
+            if(total > MAX_DAYS) { warningBox.classList.add('show'); submitBtn.disabled = true; }
+            else { warningBox.classList.remove('show'); submitBtn.disabled = false; }
+        }
+
+        function updateSummary() {
+            let counts = {}; STATUSES.forEach(s=>counts[s]=0);
+            weekDays.forEach(d=>counts[d.status]++);
+            let html = '';
+            STATUSES.forEach(s=>{
+                html += `<div class="stat-item" style="background:${SUMMARY_COLORS[s]}30; border:1px solid ${SUMMARY_COLORS[s]}"><div class="stat-label">${STATUS_LABELS[s]}</div><div class="stat-value">${counts[s]}</div></div>`;
+            });
+            summaryEl.innerHTML = html;
+        }
+
+        function renderCalendar() {
+            if(!weekDays.length) return;
+            let html = '';
+            const dayNames = ['Thứ 2','Thứ 3','Thứ 4','Thứ 5','Thứ 6','Thứ 7','Chủ nhật'];
+            weekDays.forEach((day,idx)=>{
+                let opts = '';
+                STATUSES.forEach(s=>{ opts += `<option value="${s}" ${s===day.status?'selected':''}>${STATUS_LABELS[s]}</option>`; });
+                html += `<div class="day-card"><div class="day-header">${dayNames[idx]}<br><span class="day-date">${formatDateVN(day.date)}</span></div><div class="day-body"><select class="day-select" data-index="${idx}">${opts}</select></div></div>`;
+            });
+            calendarEl.innerHTML = html;
+            document.querySelectorAll('.day-select').forEach(select=>{
+                select.addEventListener('change',function(){
+                    let idx = this.dataset.index;
+                    weekDays[idx].status = this.value;
+                    updateTotalAndWarning();
+                    updateSummary();
+                });
+            });
+            updateTotalAndWarning();
+            updateSummary();
+        }
+
+        function onMondayChange(val) {
+            let d = val ? new Date(val) : new Date();
+            currentMonday = getMondayOfWeek(d);
+            mondayPicker.value = currentMonday.toISOString().slice(0,10);
+            weekDays = generateWeekDays(currentMonday);
+            let start = formatDateVN(weekDays[0].date);
+            let end = formatDateVN(weekDays[6].date);
+            weekRange.textContent = `Tuần: ${start} – ${end}`;
+            renderCalendar();
+        }
+
+        function resetAllDays() { weekDays.forEach(d=>d.status='tu-do'); renderCalendar(); }
+
+        mondayPicker.addEventListener('change', e=>onMondayChange(e.target.value));
+        onMondayChange(null);
+        resetBtn.addEventListener('click', resetAllDays);
+
+        // ===== ĐÃ CẬP NHẬT URL CHÍNH XÁC =====
+        const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwFa7elzanzIcKNIDVQHToNPrn_yaLGG17lu6e_jF7GGXn4U94s6Qgq2YiXyjR9sVQs/exec';
+
+        submitBtn.addEventListener('click', async function() {
+            if(calculateTotal() > MAX_DAYS) { alert('Tổng ngày vượt quá 5,5!'); return; }
+            const employeeName = prompt('Nhập họ tên của bạn:');
+            if(!employeeName) { alert('Vui lòng nhập họ tên'); return; }
+
+            let detail = '';
+            const dayNames = ['Thứ 2','Thứ 3','Thứ 4','Thứ 5','Thứ 6','Thứ 7','Chủ nhật'];
+            weekDays.forEach((d,i)=>{ detail += `${dayNames[i]} (${formatDateVN(d.date)}): ${STATUS_LABELS[d.status]}\n`; });
+
+            let counts = {}; STATUSES.forEach(s=>counts[s]=0);
+            weekDays.forEach(d=>counts[d.status]++);
+            let summary = '';
+            STATUSES.forEach(s=>{ summary += `${STATUS_LABELS[s]}: ${counts[s]} ngày, `; });
+            summary += `Tổng quy đổi: ${calculateTotal().toFixed(2)}`;
+
+            const formData = new URLSearchParams();
+            formData.append('employeeName', employeeName);
+            formData.append('weekRange', weekRange.textContent);
+            formData.append('detail', detail);
+            formData.append('summary', summary);
+
+            try {
+                const response = await fetch(SCRIPT_URL, {
+                    method: 'POST',
+                    body: formData
+                });
+                const result = await response.json();
+                if(result.success) {
+                    successMsg.style.display = 'block';
+                    successMsg.textContent = '✅ Gửi thành công!';
+                    setTimeout(()=>successMsg.style.display='none', 3000);
+                } else {
+                    alert('Gửi thất bại');
+                }
+            } catch(e) {
+                alert('Lỗi kết nối');
+            }
+        });
+    })();
+</script>
+</body>
+</html>

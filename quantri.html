@@ -1,0 +1,85 @@
+<!-- quantri.html -->
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <title>Quản trị lịch làm việc</title>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; background: #f4f7fc; padding: 20px; }
+        .container { max-width: 1200px; margin: 0 auto; background: white; border-radius: 30px; padding: 30px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); }
+        h1 { color: #0b2b4b; }
+        .login { display: flex; gap: 10px; margin-bottom: 20px; align-items: center; }
+        .login input { padding: 10px; border: 2px solid #cbdae9; border-radius: 40px; flex: 1; }
+        .login button { background: #1b4f72; color: white; border: none; padding: 10px 20px; border-radius: 40px; cursor: pointer; }
+        table { width: 100%; border-collapse: collapse; background: white; border-radius: 20px; overflow: hidden; box-shadow: 0 5px 15px rgba(0,0,0,0.05); }
+        th { background: #144a6f; color: white; padding: 12px; }
+        td { padding: 10px; border-bottom: 1px solid #e0e0e0; }
+        tr:hover { background: #f5f9ff; }
+        .error { color: #a11f2c; background: #f8d7da; padding: 10px; border-radius: 40px; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h1>🔐 Quản trị dữ liệu xếp lịch</h1>
+    <div class="login">
+        <input type="password" id="passwordInput" placeholder="Nhập mật khẩu (đã đặt trong script)">
+        <button id="loginBtn">Xem dữ liệu</button>
+    </div>
+    <div id="dataArea"></div>
+</div>
+
+<script>
+    // ===== ĐÃ CẬP NHẬT URL CHÍNH XÁC =====
+    const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwFa7elzanzIcKNIDVQHToNPrn_yaLGG17lu6e_jF7GGXn4U94s6Qgq2YiXyjR9sVQs/exec';
+    const loginBtn = document.getElementById('loginBtn');
+    const passwordInput = document.getElementById('passwordInput');
+    const dataArea = document.getElementById('dataArea');
+
+    async function loadData(password) {
+        try {
+            const response = await fetch(`${SCRIPT_URL}?password=${encodeURIComponent(password)}`);
+            const data = await response.json();
+            if (data.error) {
+                dataArea.innerHTML = `<div class="error">${data.error}</div>`;
+                return;
+            }
+            if (!Array.isArray(data) || data.length === 0) {
+                dataArea.innerHTML = '<p>Chưa có dữ liệu.</p>';
+                return;
+            }
+            // Tạo bảng
+            let html = '<table><thead><tr>';
+            const headers = Object.keys(data[0]);
+            headers.forEach(h => html += `<th>${h}</th>`);
+            html += '</tr></thead><tbody>';
+            data.forEach(row => {
+                html += '<tr>';
+                headers.forEach(h => {
+                    let cell = row[h] || '';
+                    if (h === 'timestamp' && cell) cell = new Date(cell).toLocaleString('vi-VN');
+                    html += `<td>${cell}</td>`;
+                });
+                html += '</tr>';
+            });
+            html += '</tbody></table>';
+            dataArea.innerHTML = html;
+        } catch (e) {
+            dataArea.innerHTML = `<div class="error">Lỗi kết nối: ${e.message}</div>`;
+        }
+    }
+
+    loginBtn.addEventListener('click', () => {
+        const pwd = passwordInput.value.trim();
+        if (!pwd) {
+            alert('Nhập mật khẩu');
+            return;
+        }
+        loadData(pwd);
+    });
+
+    passwordInput.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') loginBtn.click();
+    });
+</script>
+</body>
+</html>
