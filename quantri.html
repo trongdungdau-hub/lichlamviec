@@ -1,79 +1,161 @@
-<!-- quantri.html -->
 <!DOCTYPE html>
 <html lang="vi">
 <head>
     <meta charset="UTF-8">
     <title>Quản trị lịch làm việc</title>
     <style>
-        body { font-family: 'Segoe UI', sans-serif; background: #f4f7fc; padding: 20px; }
-        .container { max-width: 1200px; margin: 0 auto; background: white; border-radius: 30px; padding: 30px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); }
+        * { box-sizing: border-box; font-family: 'Segoe UI', sans-serif; }
+        body { background: #f0f5fa; margin: 0; padding: 20px; }
+        .container { max-width: 1400px; margin: 0 auto; }
         h1 { color: #0b2b4b; }
-        .login { display: flex; gap: 10px; margin-bottom: 20px; align-items: center; }
-        .login input { padding: 10px; border: 2px solid #cbdae9; border-radius: 40px; flex: 1; }
-        .login button { background: #1b4f72; color: white; border: none; padding: 10px 20px; border-radius: 40px; cursor: pointer; }
+        .login { background: white; border-radius: 60px; padding: 20px; margin-bottom: 30px; display: flex; gap: 15px; align-items: center; box-shadow: 0 5px 15px rgba(0,0,0,0.05); }
+        .login input { flex: 1; padding: 12px 20px; border: 2px solid #cbdae9; border-radius: 40px; font-size: 16px; }
+        .login button { background: #1b4f72; color: white; border: none; padding: 12px 30px; border-radius: 40px; font-size: 16px; cursor: pointer; }
+        .login button:hover { background: #144a6f; }
         table { width: 100%; border-collapse: collapse; background: white; border-radius: 20px; overflow: hidden; box-shadow: 0 5px 15px rgba(0,0,0,0.05); }
-        th { background: #144a6f; color: white; padding: 12px; }
-        td { padding: 10px; border-bottom: 1px solid #e0e0e0; }
-        tr:hover { background: #f5f9ff; }
-        .error { color: #a11f2c; background: #f8d7da; padding: 10px; border-radius: 40px; }
+        th { background: #144a6f; color: white; padding: 12px; font-size: 15px; }
+        td { padding: 8px; border: 1px solid #dde9f2; vertical-align: middle; }
+        .employee-row { background: #f8fcff; }
+        .manager-row { background: #fff; }
+        .employee-row td { font-weight: 500; color: #0b2b4b; }
+        .manager-row select { width: 100%; padding: 6px; border-radius: 30px; border: 1px solid #b0c8dd; background: white; }
+        .status-pending { background: #fff3cd; color: #856404; padding: 4px 8px; border-radius: 30px; font-size: 13px; }
+        .status-approved { background: #d4edda; color: #155724; padding: 4px 8px; border-radius: 30px; font-size: 13px; }
+        .btn-update { background: #1b4f72; color: white; border: none; padding: 6px 15px; border-radius: 40px; cursor: pointer; font-size: 14px; }
+        .btn-update:hover { background: #144a6f; }
+        .message { background: #d1ecf1; color: #0c5460; padding: 12px; border-radius: 60px; margin-top: 20px; display: none; }
+        .error { background: #f8d7da; color: #a11f2c; }
+        .loading { text-align: center; padding: 40px; font-size: 18px; color: #2a7faa; }
     </style>
 </head>
 <body>
 <div class="container">
-    <h1>🔐 Quản trị dữ liệu xếp lịch</h1>
+    <h1>🔐 Quản trị lịch làm việc</h1>
     <div class="login">
-        <input type="password" id="passwordInput" placeholder="Nhập mật khẩu (mặc định: admin123)">
+        <input type="password" id="passwordInput" placeholder="Nhập mật khẩu" value="admin123">
         <button id="loginBtn">Xem dữ liệu</button>
     </div>
     <div id="dataArea"></div>
 </div>
 
 <script>
-    // ===== URL ĐÃ ĐƯỢC CẬP NHẬT CHÍNH XÁC =====
-    const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbz8L0V_oSSB1XVe7tSkReFC-ChSRMIFOifxn0g0QjXK4mtS6vBDDX5mOR_iRSKmyvEP/exec';
+    const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyPaYj1MeoF2p_NaaHmnKO1mG8arsAVMlUSaftBMTKs4d2aye7tqwFq-MISjLE8j6bL/exec';
     const loginBtn = document.getElementById('loginBtn');
     const passwordInput = document.getElementById('passwordInput');
     const dataArea = document.getElementById('dataArea');
 
+    const STATUSES = ['Tự do', 'Làm sáng', 'Làm chiều', 'Nửa ca sáng', 'Nửa ca chiều', 'Nghỉ ca', 'Nghỉ phép'];
+
     async function loadData(password) {
+        dataArea.innerHTML = '<div class="loading">Đang tải dữ liệu...</div>';
         try {
             const response = await fetch(`${SCRIPT_URL}?password=${encodeURIComponent(password)}`);
             const data = await response.json();
             if (data.error) {
-                dataArea.innerHTML = `<div class="error">${data.error}</div>`;
+                dataArea.innerHTML = `<div class="message error">${data.error}</div>`;
                 return;
             }
             if (!Array.isArray(data) || data.length === 0) {
                 dataArea.innerHTML = '<p>Chưa có dữ liệu.</p>';
                 return;
             }
-            // Tạo bảng
-            let html = '<table><thead><tr>';
-            const headers = Object.keys(data[0]);
-            headers.forEach(h => html += `<th>${h}</th>`);
-            html += '</tr></thead><tbody>';
-            data.forEach(row => {
-                html += '<tr>';
-                headers.forEach(h => {
-                    let cell = row[h] || '';
-                    if (h === 'timestamp' && cell) cell = new Date(cell).toLocaleString('vi-VN');
-                    html += `<td>${cell}</td>`;
-                });
-                html += '</tr>';
-            });
-            html += '</tbody></table>';
-            dataArea.innerHTML = html;
+            renderTable(data);
         } catch (e) {
-            dataArea.innerHTML = `<div class="error">Lỗi kết nối: ${e.message}</div>`;
+            dataArea.innerHTML = `<div class="message error">Lỗi kết nối: ${e.message}</div>`;
         }
     }
 
+    function renderTable(rows) {
+        let html = '<table><thead><tr><th>STT</th><th>Họ tên</th><th>Tuần</th><th>Thứ 2</th><th>Thứ 3</th><th>Thứ 4</th><th>Thứ 5</th><th>Thứ 6</th><th>Thứ 7</th><th>CN</th><th>Trạng thái</th><th></th></tr></thead><tbody>';
+        
+        rows.forEach((row, index) => {
+            const rowIndex = index + 2;
+            const employeeName = row['Họ tên'] || 'N/A';
+            const weekStart = row['Tuần (bắt đầu)'] || '';
+            const day2 = row['Thứ 2'] || 'Tự do';
+            const day3 = row['Thứ 3'] || 'Tự do';
+            const day4 = row['Thứ 4'] || 'Tự do';
+            const day5 = row['Thứ 5'] || 'Tự do';
+            const day6 = row['Thứ 6'] || 'Tự do';
+            const day7 = row['Thứ 7'] || 'Tự do';
+            const dayCn = row['Chủ nhật'] || 'Tự do';
+            const status = row['Trạng thái'] || 'Chờ duyệt';
+            
+            html += `<tr class="employee-row" data-rowindex="${rowIndex}">`;
+            html += `<td>${index + 1}</td>`;
+            html += `<td>${employeeName}</td>`;
+            html += `<td>${weekStart}</td>`;
+            html += `<td>${day2}</td><td>${day3}</td><td>${day4}</td><td>${day5}</td><td>${day6}</td><td>${day7}</td><td>${dayCn}</td>`;
+            html += `<td><span class="${status === 'Đã duyệt' ? 'status-approved' : 'status-pending'}">${status}</span></td>`;
+            html += `<td></td></tr>`;
+
+            const createSelect = (selected) => {
+                let options = '';
+                STATUSES.forEach(s => {
+                    options += `<option value="${s}" ${s === selected ? 'selected' : ''}>${s}</option>`;
+                });
+                return `<select class="day-select" data-day="${selected}">${options}</select>`;
+            };
+
+            html += `<tr class="manager-row" data-parentrow="${rowIndex}">`;
+            html += `<td></td><td></td><td></td>`;
+            html += `<td>${createSelect(day2)}</td>`;
+            html += `<td>${createSelect(day3)}</td>`;
+            html += `<td>${createSelect(day4)}</td>`;
+            html += `<td>${createSelect(day5)}</td>`;
+            html += `<td>${createSelect(day6)}</td>`;
+            html += `<td>${createSelect(day7)}</td>`;
+            html += `<td>${createSelect(dayCn)}</td>`;
+            html += `<td></td>`;
+            html += `<td><button class="btn-update" onclick="updateRow(this)" data-rowindex="${rowIndex}">Cập nhật</button></td>`;
+            html += `</tr>`;
+        });
+
+        html += '</tbody></table>';
+        dataArea.innerHTML = html;
+    }
+
+    window.updateRow = async function(btn) {
+        const rowIndex = btn.dataset.rowindex;
+        const managerRow = btn.closest('tr');
+        const selects = managerRow.querySelectorAll('.day-select');
+        const dayValues = Array.from(selects).map(s => s.value);
+        const adminPassword = passwordInput.value.trim();
+
+        if (!adminPassword) { alert('Nhập mật khẩu quản trị'); return; }
+
+        const formData = new URLSearchParams();
+        formData.append('action', 'update');
+        formData.append('adminPassword', adminPassword);
+        formData.append('rowIndex', rowIndex);
+        formData.append('day2', dayValues[0]);
+        formData.append('day3', dayValues[1]);
+        formData.append('day4', dayValues[2]);
+        formData.append('day5', dayValues[3]);
+        formData.append('day6', dayValues[4]);
+        formData.append('day7', dayValues[5]);
+        formData.append('dayCn', dayValues[6]);
+
+        try {
+            const response = await fetch(SCRIPT_URL, {
+                method: 'POST',
+                body: formData
+            });
+            const result = await response.json();
+            if (result.success) {
+                alert('Cập nhật thành công!');
+                loadData(adminPassword);
+            } else {
+                alert('Lỗi: ' + (result.error || 'Không xác định'));
+            }
+        } catch (e) {
+            alert('Lỗi kết nối: ' + e.message);
+        }
+    };
+
     loginBtn.addEventListener('click', () => {
         const pwd = passwordInput.value.trim();
-        if (!pwd) {
-            alert('Nhập mật khẩu');
-            return;
-        }
+        if (!pwd) { alert('Nhập mật khẩu'); return; }
         loadData(pwd);
     });
 

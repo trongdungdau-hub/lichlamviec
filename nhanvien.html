@@ -1,11 +1,9 @@
-<!-- nhanvien.html -->
 <!DOCTYPE html>
 <html lang="vi">
 <head>
     <meta charset="UTF-8">
     <title>Xếp lịch làm việc</title>
     <style>
-        /* Toàn bộ style giữ nguyên như trong hướng dẫn trước */
         * { box-sizing: border-box; font-family: 'Segoe UI', sans-serif; }
         body { background: linear-gradient(145deg, #f0f5fa, #e2ebf3); min-height: 100vh; display: flex; justify-content: center; align-items: center; padding: 16px; }
         .card { max-width: 1200px; width: 100%; background: white; border-radius: 32px; padding: 32px 24px; box-shadow: 0 20px 40px rgba(0,20,40,0.1); }
@@ -24,6 +22,7 @@
         button { background: linear-gradient(145deg,#1b4f72,#144a6f); color: white; border: none; padding: 18px 32px; border-radius: 60px; flex: 1; font-size: 20px; cursor: pointer; }
         .reset-btn { background: #6c757d; }
         .success-message { display: none; background: #d1ecf1; color: #0c5460; padding: 16px; border-radius: 60px; text-align: center; margin-top: 20px; }
+        .footer-note { text-align:center; color:#607d8b; margin-top:24px; }
     </style>
 </head>
 <body>
@@ -52,7 +51,7 @@
         <button id="resetBtn" class="reset-btn">🔄 Đặt lại</button>
     </div>
     <div id="successMessage" class="success-message"></div>
-    <div class="footer-note" style="text-align:center; color:#607d8b; margin-top:24px;">* Sau khi gửi, quản lý sẽ nhận được dữ liệu.</div>
+    <div class="footer-note">* Sau khi gửi, quản lý sẽ nhận được dữ liệu.</div>
 </div>
 
 <script>
@@ -147,29 +146,27 @@
         onMondayChange(null);
         resetBtn.addEventListener('click', resetAllDays);
 
-        // ===== URL ĐÃ ĐƯỢC CẬP NHẬT CHÍNH XÁC =====
-        const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbz8L0V_oSSB1XVe7tSkReFC-ChSRMIFOifxn0g0QjXK4mtS6vBDDX5mOR_iRSKmyvEP/exec';
+        // ========== URL Google Script ==========
+        const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyPaYj1MeoF2p_NaaHmnKO1mG8arsAVMlUSaftBMTKs4d2aye7tqwFq-MISjLE8j6bL/exec';
 
         submitBtn.addEventListener('click', async function() {
             if(calculateTotal() > MAX_DAYS) { alert('Tổng ngày vượt quá 5,5!'); return; }
             const employeeName = prompt('Nhập họ tên của bạn:');
             if(!employeeName) { alert('Vui lòng nhập họ tên'); return; }
 
-            let detail = '';
-            const dayNames = ['Thứ 2','Thứ 3','Thứ 4','Thứ 5','Thứ 6','Thứ 7','Chủ nhật'];
-            weekDays.forEach((d,i)=>{ detail += `${dayNames[i]} (${formatDateVN(d.date)}): ${STATUS_LABELS[d.status]}\n`; });
-
-            let counts = {}; STATUSES.forEach(s=>counts[s]=0);
-            weekDays.forEach(d=>counts[d.status]++);
-            let summary = '';
-            STATUSES.forEach(s=>{ summary += `${STATUS_LABELS[s]}: ${counts[s]} ngày, `; });
-            summary += `Tổng quy đổi: ${calculateTotal().toFixed(2)}`;
+            const weekStart = weekDays[0].date.toISOString().slice(0,10); 
+            const dayValues = weekDays.map(d => d.status);
 
             const formData = new URLSearchParams();
             formData.append('employeeName', employeeName);
-            formData.append('weekRange', weekRange.textContent);
-            formData.append('detail', detail);
-            formData.append('summary', summary);
+            formData.append('weekStart', weekStart);
+            formData.append('day2', dayValues[0]);
+            formData.append('day3', dayValues[1]);
+            formData.append('day4', dayValues[2]);
+            formData.append('day5', dayValues[3]);
+            formData.append('day6', dayValues[4]);
+            formData.append('day7', dayValues[5]);
+            formData.append('dayCn', dayValues[6]);
 
             try {
                 const response = await fetch(SCRIPT_URL, {
