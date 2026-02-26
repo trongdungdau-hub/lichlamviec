@@ -44,7 +44,19 @@
     const passwordInput = document.getElementById('passwordInput');
     const dataArea = document.getElementById('dataArea');
 
-    const STATUSES = ['Tự do', 'Làm sáng', 'Làm chiều', 'Nửa ca sáng', 'Nửa ca chiều', 'Nghỉ ca', 'Nghỉ phép'];
+    // Ánh xạ từ mã (trong sheet) sang tên tiếng Việt hiển thị
+    const CODE_TO_LABEL = {
+        'tu-do': 'Tự do',
+        'lam-sang': 'Làm sáng',
+        'lam-chieu': 'Làm chiều',
+        'nua-ca-sang': 'Nửa ca sáng',
+        'nua-ca-chieu': 'Nửa ca chiều',
+        'nghi-ca': 'Nghỉ ca',
+        'nghi-phep': 'Nghỉ phép'
+    };
+
+    // Danh sách các mã (dùng để tạo dropdown, value là mã, text là nhãn)
+    const STATUS_CODES = Object.keys(CODE_TO_LABEL);
 
     async function loadData(password) {
         dataArea.innerHTML = '<div class="loading">Đang tải dữ liệu...</div>';
@@ -66,46 +78,59 @@
     }
 
     function renderTable(rows) {
-        let html = '<table><thead><tr><th>STT</th><th>Họ tên</th><th>Tuần</th><th>Thứ 2</th><th>Thứ 3</th><th>Thứ 4</th><th>Thứ 5</th><th>Thứ 6</th><th>Thứ 7</th><th>CN</th><th>Trạng thái</th><th></th></tr></thead><tbody>';
+        let html = '<table><thead><tr><th>STT</th><th>Họ tên</th><th>Tuần</th><th>Thứ 2</th><th>Thứ 3</th><th>Thứ 4</th><th>Thứ 5</th><th>Thứ 6</th><th>Thứ 7</th><th>Chủ nhật</th><th>Trạng thái</th><th></th></tr></thead><tbody>';
         
         rows.forEach((row, index) => {
-            const rowIndex = index + 2;
+            const rowIndex = index + 2; // Dòng thực tế trong sheet (vì dòng 1 là header)
             const employeeName = row['Họ tên'] || 'N/A';
             const weekStart = row['Tuần (bắt đầu)'] || '';
-            const day2 = row['Thứ 2'] || 'Tự do';
-            const day3 = row['Thứ 3'] || 'Tự do';
-            const day4 = row['Thứ 4'] || 'Tự do';
-            const day5 = row['Thứ 5'] || 'Tự do';
-            const day6 = row['Thứ 6'] || 'Tự do';
-            const day7 = row['Thứ 7'] || 'Tự do';
-            const dayCn = row['Chủ nhật'] || 'Tự do';
+            // Lấy mã từ sheet, nếu không có thì mặc định 'tu-do'
+            const day2Code = row['Thứ 2'] || 'tu-do';
+            const day3Code = row['Thứ 3'] || 'tu-do';
+            const day4Code = row['Thứ 4'] || 'tu-do';
+            const day5Code = row['Thứ 5'] || 'tu-do';
+            const day6Code = row['Thứ 6'] || 'tu-do';
+            const day7Code = row['Thứ 7'] || 'tu-do';
+            const dayCnCode = row['Chủ nhật'] || 'tu-do';
             const status = row['Trạng thái'] || 'Chờ duyệt';
+
+            // Chuyển mã sang nhãn tiếng Việt để hiển thị
+            const day2Label = CODE_TO_LABEL[day2Code] || day2Code;
+            const day3Label = CODE_TO_LABEL[day3Code] || day3Code;
+            const day4Label = CODE_TO_LABEL[day4Code] || day4Code;
+            const day5Label = CODE_TO_LABEL[day5Code] || day5Code;
+            const day6Label = CODE_TO_LABEL[day6Code] || day6Code;
+            const day7Label = CODE_TO_LABEL[day7Code] || day7Code;
+            const dayCnLabel = CODE_TO_LABEL[dayCnCode] || dayCnCode;
             
+            // Dòng nhân viên (dữ liệu gốc, hiển thị bằng tiếng Việt)
             html += `<tr class="employee-row" data-rowindex="${rowIndex}">`;
             html += `<td>${index + 1}</td>`;
             html += `<td>${employeeName}</td>`;
             html += `<td>${weekStart}</td>`;
-            html += `<td>${day2}</td><td>${day3}</td><td>${day4}</td><td>${day5}</td><td>${day6}</td><td>${day7}</td><td>${dayCn}</td>`;
+            html += `<td>${day2Label}</td><td>${day3Label}</td><td>${day4Label}</td><td>${day5Label}</td><td>${day6Label}</td><td>${day7Label}</td><td>${dayCnLabel}</td>`;
             html += `<td><span class="${status === 'Đã duyệt' ? 'status-approved' : 'status-pending'}">${status}</span></td>`;
             html += `<td></td></tr>`;
 
-            const createSelect = (selected) => {
+            // Dòng quản lý (dropdown để chỉnh sửa) - value là mã, text là nhãn
+            const createSelect = (selectedCode) => {
                 let options = '';
-                STATUSES.forEach(s => {
-                    options += `<option value="${s}" ${s === selected ? 'selected' : ''}>${s}</option>`;
+                STATUS_CODES.forEach(code => {
+                    const label = CODE_TO_LABEL[code];
+                    options += `<option value="${code}" ${code === selectedCode ? 'selected' : ''}>${label}</option>`;
                 });
-                return `<select class="day-select" data-day="${selected}">${options}</select>`;
+                return `<select class="day-select">${options}</select>`;
             };
 
             html += `<tr class="manager-row" data-parentrow="${rowIndex}">`;
-            html += `<td></td><td></td><td></td>`;
-            html += `<td>${createSelect(day2)}</td>`;
-            html += `<td>${createSelect(day3)}</td>`;
-            html += `<td>${createSelect(day4)}</td>`;
-            html += `<td>${createSelect(day5)}</td>`;
-            html += `<td>${createSelect(day6)}</td>`;
-            html += `<td>${createSelect(day7)}</td>`;
-            html += `<td>${createSelect(dayCn)}</td>`;
+            html += `<td></td><td></td><td></td>`; // STT, Họ tên, Tuần để trống
+            html += `<td>${createSelect(day2Code)}</td>`;
+            html += `<td>${createSelect(day3Code)}</td>`;
+            html += `<td>${createSelect(day4Code)}</td>`;
+            html += `<td>${createSelect(day5Code)}</td>`;
+            html += `<td>${createSelect(day6Code)}</td>`;
+            html += `<td>${createSelect(day7Code)}</td>`;
+            html += `<td>${createSelect(dayCnCode)}</td>`;
             html += `<td></td>`;
             html += `<td><button class="btn-update" onclick="updateRow(this)" data-rowindex="${rowIndex}">Cập nhật</button></td>`;
             html += `</tr>`;
@@ -119,6 +144,7 @@
         const rowIndex = btn.dataset.rowindex;
         const managerRow = btn.closest('tr');
         const selects = managerRow.querySelectorAll('.day-select');
+        // Lấy value (mã) từ các dropdown
         const dayValues = Array.from(selects).map(s => s.value);
         const adminPassword = passwordInput.value.trim();
 
@@ -144,7 +170,7 @@
             const result = await response.json();
             if (result.success) {
                 alert('Cập nhật thành công!');
-                loadData(adminPassword);
+                loadData(adminPassword); // Tải lại dữ liệu để thấy thay đổi
             } else {
                 alert('Lỗi: ' + (result.error || 'Không xác định'));
             }
