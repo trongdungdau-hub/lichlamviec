@@ -12,6 +12,18 @@
         .login input { flex: 1; padding: 12px 20px; border: 2px solid #cbdae9; border-radius: 40px; font-size: 16px; }
         .login button { background: #1b4f72; color: white; border: none; padding: 12px 30px; border-radius: 40px; font-size: 16px; cursor: pointer; }
         .login button:hover { background: #144a6f; }
+        .btn-export {
+            background: #28a745;
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 40px;
+            font-size: 16px;
+            cursor: pointer;
+            font-weight: 600;
+            margin-left: 10px;
+        }
+        .btn-export:hover { background: #218838; }
         table { width: 100%; border-collapse: collapse; background: white; border-radius: 20px; overflow: hidden; box-shadow: 0 5px 15px rgba(0,0,0,0.05); }
         th { background: #144a6f; color: white; padding: 12px; font-size: 15px; }
         td { padding: 8px; border: 1px solid #dde9f2; vertical-align: middle; }
@@ -34,17 +46,20 @@
     <div class="login">
         <input type="password" id="passwordInput" placeholder="Nhập mật khẩu" value="admin123">
         <button id="loginBtn">Xem dữ liệu</button>
+        <button id="exportBtn" class="btn-export">📸 Xuất báo cáo (đã duyệt)</button>
     </div>
     <div id="dataArea"></div>
 </div>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script>
     const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyPaYj1MeoF2p_NaaHmnKO1mG8arsAVMlUSaftBMTKs4d2aye7tqwFq-MISjLE8j6bL/exec';
     const loginBtn = document.getElementById('loginBtn');
     const passwordInput = document.getElementById('passwordInput');
     const dataArea = document.getElementById('dataArea');
+    const exportBtn = document.getElementById('exportBtn');
 
-    // Ánh xạ từ mã (trong sheet) sang tên tiếng Việt hiển thị
+    // Ánh xạ từ mã (trong sheet) sang tên tiếng Việt
     const CODE_TO_LABEL = {
         'tu-do': 'Tự do',
         'lam-sang': 'Làm sáng',
@@ -54,8 +69,6 @@
         'nghi-ca': 'Nghỉ ca',
         'nghi-phep': 'Nghỉ phép'
     };
-
-    // Danh sách các mã (dùng để tạo dropdown, value là mã, text là nhãn)
     const STATUS_CODES = Object.keys(CODE_TO_LABEL);
 
     async function loadData(password) {
@@ -81,10 +94,9 @@
         let html = '<table><thead><tr><th>STT</th><th>Họ tên</th><th>Tuần</th><th>Thứ 2</th><th>Thứ 3</th><th>Thứ 4</th><th>Thứ 5</th><th>Thứ 6</th><th>Thứ 7</th><th>Chủ nhật</th><th>Trạng thái</th><th></th></tr></thead><tbody>';
         
         rows.forEach((row, index) => {
-            const rowIndex = index + 2; // Dòng thực tế trong sheet (vì dòng 1 là header)
+            const rowIndex = index + 2; // Dòng thực tế trong sheet
             const employeeName = row['Họ tên'] || 'N/A';
             const weekStart = row['Tuần (bắt đầu)'] || '';
-            // Lấy mã từ sheet, nếu không có thì mặc định 'tu-do'
             const day2Code = row['Thứ 2'] || 'tu-do';
             const day3Code = row['Thứ 3'] || 'tu-do';
             const day4Code = row['Thứ 4'] || 'tu-do';
@@ -94,7 +106,6 @@
             const dayCnCode = row['Chủ nhật'] || 'tu-do';
             const status = row['Trạng thái'] || 'Chờ duyệt';
 
-            // Chuyển mã sang nhãn tiếng Việt để hiển thị
             const day2Label = CODE_TO_LABEL[day2Code] || day2Code;
             const day3Label = CODE_TO_LABEL[day3Code] || day3Code;
             const day4Label = CODE_TO_LABEL[day4Code] || day4Code;
@@ -103,7 +114,7 @@
             const day7Label = CODE_TO_LABEL[day7Code] || day7Code;
             const dayCnLabel = CODE_TO_LABEL[dayCnCode] || dayCnCode;
             
-            // Dòng nhân viên (dữ liệu gốc, hiển thị bằng tiếng Việt)
+            // Dòng nhân viên
             html += `<tr class="employee-row" data-rowindex="${rowIndex}">`;
             html += `<td>${index + 1}</td>`;
             html += `<td>${employeeName}</td>`;
@@ -112,7 +123,7 @@
             html += `<td><span class="${status === 'Đã duyệt' ? 'status-approved' : 'status-pending'}">${status}</span></td>`;
             html += `<td></td></tr>`;
 
-            // Dòng quản lý (dropdown để chỉnh sửa) - value là mã, text là nhãn
+            // Dòng quản lý
             const createSelect = (selectedCode) => {
                 let options = '';
                 STATUS_CODES.forEach(code => {
@@ -123,7 +134,7 @@
             };
 
             html += `<tr class="manager-row" data-parentrow="${rowIndex}">`;
-            html += `<td></td><td></td><td></td>`; // STT, Họ tên, Tuần để trống
+            html += `<td></td><td></td><td></td>`;
             html += `<td>${createSelect(day2Code)}</td>`;
             html += `<td>${createSelect(day3Code)}</td>`;
             html += `<td>${createSelect(day4Code)}</td>`;
@@ -144,7 +155,6 @@
         const rowIndex = btn.dataset.rowindex;
         const managerRow = btn.closest('tr');
         const selects = managerRow.querySelectorAll('.day-select');
-        // Lấy value (mã) từ các dropdown
         const dayValues = Array.from(selects).map(s => s.value);
         const adminPassword = passwordInput.value.trim();
 
@@ -170,7 +180,7 @@
             const result = await response.json();
             if (result.success) {
                 alert('Cập nhật thành công!');
-                loadData(adminPassword); // Tải lại dữ liệu để thấy thay đổi
+                loadData(adminPassword);
             } else {
                 alert('Lỗi: ' + (result.error || 'Không xác định'));
             }
@@ -178,6 +188,60 @@
             alert('Lỗi kết nối: ' + e.message);
         }
     };
+
+    // Hàm xuất báo cáo
+    exportBtn.addEventListener('click', function() {
+        const approvedRows = document.querySelectorAll('.employee-row .status-approved');
+        if (approvedRows.length === 0) {
+            alert('Không có dòng nào đã duyệt để xuất báo cáo.');
+            return;
+        }
+
+        // Lấy tất cả các dòng .employee-row có trạng thái "Đã duyệt"
+        const rowsToExport = [];
+        document.querySelectorAll('.employee-row').forEach(row => {
+            const statusSpan = row.querySelector('.status-approved');
+            if (statusSpan) {
+                rowsToExport.push(row);
+            }
+        });
+
+        // Tạo bảng tạm
+        const tempTable = document.createElement('table');
+        tempTable.style.borderCollapse = 'collapse';
+        tempTable.style.width = '100%';
+        tempTable.style.background = 'white';
+        tempTable.style.fontSize = '14px';
+
+        // Clone header và xóa ô cuối (cột trống)
+        const headerRow = document.querySelector('table thead tr').cloneNode(true);
+        headerRow.deleteCell(-1); // Xóa cột cuối
+        tempTable.appendChild(headerRow);
+
+        // Clone các dòng đã duyệt và xóa ô cuối
+        rowsToExport.forEach(row => {
+            const clonedRow = row.cloneNode(true);
+            clonedRow.deleteCell(-1); // Xóa ô cuối
+            tempTable.appendChild(clonedRow);
+        });
+
+        // Đưa bảng tạm ra ngoài màn hình để chụp
+        tempTable.style.position = 'absolute';
+        tempTable.style.left = '-9999px';
+        document.body.appendChild(tempTable);
+
+        html2canvas(tempTable, { scale: 2, backgroundColor: '#ffffff' }).then(canvas => {
+            const link = document.createElement('a');
+            link.download = `bao-cao-da-duyet-${new Date().toISOString().slice(0,10)}.png`;
+            link.href = canvas.toDataURL('image/png');
+            link.click();
+            document.body.removeChild(tempTable);
+        }).catch(error => {
+            console.error('Lỗi khi chụp ảnh:', error);
+            alert('Có lỗi khi xuất báo cáo.');
+            document.body.removeChild(tempTable);
+        });
+    });
 
     loginBtn.addEventListener('click', () => {
         const pwd = passwordInput.value.trim();
