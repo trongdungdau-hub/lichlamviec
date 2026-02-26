@@ -22,15 +22,15 @@
 <div class="container">
     <h1>🔐 Quản trị dữ liệu xếp lịch</h1>
     <div class="login">
-        <input type="password" id="passwordInput" placeholder="Nhập mật khẩu (đã đặt trong script)">
+        <input type="password" id="passwordInput" placeholder="Nhập mật khẩu (mặc định: admin123)">
         <button id="loginBtn">Xem dữ liệu</button>
     </div>
     <div id="dataArea"></div>
 </div>
 
 <script>
-    // ===== ĐÃ CẬP NHẬT URL CHÍNH XÁC =====
-    const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwFa7elzanzIcKNIDVQHToNPrn_yaLGG17lu6e_jF7GGXn4U94s6Qgq2YiXyjR9sVQs/exec';
+    // ===== URL ĐÃ ĐƯỢC CẬP NHẬT CHÍNH XÁC =====
+    const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbz8L0V_oSSB1XVe7tSkReFC-ChSRMIFOifxn0g0QjXK4mtS6vBDDX5mOR_iRSKmyvEP/exec';
     const loginBtn = document.getElementById('loginBtn');
     const passwordInput = document.getElementById('passwordInput');
     const dataArea = document.getElementById('dataArea');
