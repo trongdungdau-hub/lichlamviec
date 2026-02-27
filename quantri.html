@@ -129,7 +129,6 @@
 </head>
 <body>
 
-<!-- Popup đăng nhập -->
 <div id="loginPopup" class="login-popup">
     <div class="popup-box">
         <div class="popup-row">
@@ -144,7 +143,6 @@
     </div>
 </div>
 
-<!-- Nội dung chính -->
 <div id="mainContent" class="main-content">
     <div class="header-bar">
         <h1>📊 Dữ liệu đăng ký lịch làm việc</h1>
@@ -175,23 +173,38 @@
     };
     const STATUS_CODES = Object.keys(CODE_TO_LABEL);
 
-    // Hàm tính ngày tháng từ weekStart (YYYY-MM-DD) trả về mảng 7 ngày dạng DD/MM
+    /**
+     * Hàm tính mảng 7 ngày dạng DD/MM từ ngày bắt đầu tuần
+     * Đã nâng cấp để nhận diện mọi định dạng ngày từ Sheets
+     */
     function getDayDates(weekStart) {
-        const empty = ['', '', '', '', '', '', ''];
-        if (!weekStart || typeof weekStart !== 'string') return empty;
+        if (!weekStart) return ['', '', '', '', '', '', ''];
         
-        const parts = weekStart.split('-');
-        if (parts.length !== 3) return empty;
-        
-        const year = parseInt(parts[0], 10);
-        const month = parseInt(parts[1], 10) - 1;
-        const day = parseInt(parts[2], 10);
-        
-        if (isNaN(year) || isNaN(month) || isNaN(day)) return empty;
-        
-        const baseDate = new Date(year, month, day);
-        if (isNaN(baseDate)) return empty;
-        
+        let baseDate;
+
+        // Xử lý định dạng VN (VD: 15/03/2024)
+        if (typeof weekStart === 'string' && weekStart.includes('/')) {
+            const datePart = weekStart.split(' ')[0]; 
+            const parts = datePart.split('/');
+            if (parts.length === 3) {
+                const day = parseInt(parts[0], 10);
+                const month = parseInt(parts[1], 10) - 1; 
+                const year = parseInt(parts[2], 10);
+                baseDate = new Date(year, month, day, 12, 0, 0);
+            }
+        } 
+        // Xử lý chuỗi ISO hoặc YYYY-MM-DD
+        else {
+            baseDate = new Date(weekStart);
+            if (!isNaN(baseDate.getTime())) {
+                baseDate.setHours(12, 0, 0, 0); 
+            }
+        }
+
+        if (!baseDate || isNaN(baseDate.getTime())) {
+            return ['', '', '', '', '', '', ''];
+        }
+
         const dates = [];
         for (let i = 0; i < 7; i++) {
             const d = new Date(baseDate);
@@ -223,11 +236,9 @@
     }
 
     function renderTable(rows) {
-        // Lấy tuần của nhân viên đầu tiên (cột C) để làm ngày tháng cho tiêu đề
-        const firstWeekStart = rows[0]['Tuần (bắt đầu)'] || '';
-        const headerDates = getDayDates(firstWeekStart); // mảng 7 ngày
+        const firstWeekStart = rows[0]?.['Tuần (bắt đầu)'] || '';
+        const headerDates = getDayDates(firstWeekStart);
 
-        // Tạo header với ngày tháng bên dưới
         let html = '<table><thead><tr>';
         html += '<th>STT</th>';
         html += '<th>Họ tên</th>';
@@ -244,9 +255,11 @@
         html += '</tr></thead><tbody>';
         
         rows.forEach((row, index) => {
-            const rowIndex = index + 2;
+            // Lấy trực tiếp rowIndex từ server gửi về (nếu bạn đã thêm obj.rowIndex ở code Script)
+            // Nếu không có, dự phòng tính bằng index + 2
+            const rowIndex = row.rowIndex || (index + 2); 
             const employeeName = row['Họ tên'] || 'N/A';
-            const weekStart = row['Tuần (bắt đầu)'] || ''; // cột C
+            const weekStart = row['Tuần (bắt đầu)'] || '';
             const day2Code = row['Thứ 2'] || 'tu-do';
             const day3Code = row['Thứ 3'] || 'tu-do';
             const day4Code = row['Thứ 4'] || 'tu-do';
@@ -256,7 +269,6 @@
             const dayCnCode = row['Chủ nhật'] || 'tu-do';
             const status = row['Trạng thái'] || 'Chờ duyệt';
 
-            // Tính ngày tháng cho cột "Tuần (từ - đến)"
             const dayDates = getDayDates(weekStart);
             const weekRangeText = (dayDates[0] && dayDates[6]) ? `từ ${dayDates[0]} đến ${dayDates[6]}` : weekStart;
 
@@ -333,19 +345,29 @@
         formData.append('dayCn', dayValues[6]);
 
         try {
+            // Hiển thị trạng thái đang cập nhật
+            const originalText = btn.textContent;
+            btn.textContent = 'Đang lưu...';
+            btn.disabled = true;
+
             const response = await fetch(SCRIPT_URL, {
                 method: 'POST',
                 body: formData
             });
             const result = await response.json();
+            
             if (result.success) {
                 alert('Cập nhật thành công!');
-                loadData(adminPassword);
+                loadData(adminPassword); // Tải lại bảng để thấy chữ "Đã duyệt"
             } else {
                 alert('Lỗi: ' + (result.error || 'Không xác định'));
+                btn.textContent = originalText;
+                btn.disabled = false;
             }
         } catch (e) {
             alert('Lỗi kết nối: ' + e.message);
+            btn.textContent = 'Cập nhật';
+            btn.disabled = false;
         }
     };
 
@@ -372,12 +394,12 @@
         tempTable.style.fontSize = '14px';
 
         const headerRow = document.querySelector('table thead tr').cloneNode(true);
-        headerRow.deleteCell(-1);
+        headerRow.deleteCell(-1); // Bỏ cột cuối (nút cập nhật)
         tempTable.appendChild(headerRow);
 
         rowsToExport.forEach(row => {
             const clonedRow = row.cloneNode(true);
-            clonedRow.deleteCell(-1);
+            clonedRow.deleteCell(-1); // Bỏ cột cuối
             tempTable.appendChild(clonedRow);
         });
 
@@ -385,16 +407,27 @@
         tempTable.style.left = '-9999px';
         document.body.appendChild(tempTable);
 
+        // Đổi sang hiệu ứng hiển thị tải ảnh
+        const originalText = exportBtn.textContent;
+        exportBtn.textContent = '📸 Đang tạo ảnh...';
+
         html2canvas(tempTable, { scale: 2, backgroundColor: '#ffffff' }).then(canvas => {
+            // Tính chuỗi ngày tháng năm theo giờ địa phương (Tránh lỗi lùi ngày của toISOString)
+            const today = new Date();
+            const localDateStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+            
             const link = document.createElement('a');
-            link.download = `bao-cao-da-duyet-${new Date().toISOString().slice(0,10)}.png`;
+            link.download = `bao-cao-da-duyet-${localDateStr}.png`;
             link.href = canvas.toDataURL('image/png');
             link.click();
+            
             document.body.removeChild(tempTable);
+            exportBtn.textContent = originalText;
         }).catch(error => {
             console.error('Lỗi khi chụp ảnh:', error);
             alert('Có lỗi khi xuất báo cáo.');
             document.body.removeChild(tempTable);
+            exportBtn.textContent = originalText;
         });
     });
 
