@@ -5,7 +5,7 @@
     <title>Xếp lịch làm việc</title>
     <style>
         * { box-sizing: border-box; font-family: 'Segoe UI', sans-serif; }
-        body { background: linear-gradient(145deg, #f0f5fa, #e2ebf3); min-height: 100vh; display: flex; justify-content: center; align-items: center; padding: 16px; }
+        body { background: linear-gradient(145deg, #f0f5fa, #e2ebf3); min-height: 100vh; display: flex; justify-content: center; align-items: center; padding: 16px; margin: 0; }
         .card { max-width: 1200px; width: 100%; background: white; border-radius: 32px; padding: 32px 24px; box-shadow: 0 20px 40px rgba(0,20,40,0.1); }
         h2 { font-size: 28px; color: #0b2b4b; margin: 0 0 8px; }
         .sub { border-left:4px solid #2a7faa; padding-left:18px; background:#e8f0f9; border-radius:0 20px 20px 0; min-height:1px; margin-bottom:28px;}
@@ -18,6 +18,7 @@
         .summary { display: grid; grid-template-columns: repeat(auto-fit,minmax(130px,1fr)); gap: 16px; background: #eaf3fb; border-radius: 48px; padding: 24px; margin: 20px 0; }
         .total-section { background: #f5faff; border-radius: 40px; padding: 16px 24px; display: flex; justify-content: space-between; flex-wrap: wrap; border: 1px solid #c7dfff; }
         .warning-message { background: #f8d7da; color: #a11f2c; border-radius: 60px; padding: 14px 25px; display: none; }
+        .warning-message.show { display: block; }
         .button-group { display: flex; gap: 15px; margin-top: 20px; }
         button { background: linear-gradient(145deg,#1b4f72,#144a6f); color: white; border: none; padding: 18px 32px; border-radius: 60px; flex: 1; font-size: 20px; cursor: pointer; }
         .reset-btn { background: #6c757d; }
@@ -85,9 +86,41 @@
         const resetBtn = document.getElementById('resetBtn');
         const successMsg = document.getElementById('successMessage');
 
-        function formatDateVN(d) { return d.toLocaleDateString('vi-VN',{day:'2-digit',month:'2-digit'}); }
-        function getMondayOfWeek(d) { let day=d.getDay(); let diff=(day===0)?6:day-1; let m=new Date(d); m.setDate(m.getDate()-diff); m.setHours(0,0,0,0); return m; }
-        function generateWeekDays(m) { let days=[]; for(let i=0;i<7;i++){ let d=new Date(m); d.setDate(m.getDate()+i); days.push({date:d,status:'tu-do'}); } return days; }
+        // ================= CÁC HÀM XỬ LÝ NGÀY THÁNG CHUẨN (KHÔNG BỊ LỆCH MÚI GIỜ) =================
+        function toLocalISODate(d) {
+            const year = d.getFullYear();
+            const month = String(d.getMonth() + 1).padStart(2, '0');
+            const day = String(d.getDate()).padStart(2, '0');
+            return `${year}-${month}-${day}`;
+        }
+
+        function formatDateVN(d) { 
+            const day = String(d.getDate()).padStart(2, '0');
+            const month = String(d.getMonth() + 1).padStart(2, '0');
+            return `${day}/${month}`;
+        }
+
+        function getMondayOfWeek(d) { 
+            let day = d.getDay(); 
+            let diff = (day === 0) ? 6 : day - 1; 
+            let m = new Date(d); 
+            m.setDate(m.getDate() - diff); 
+            // Cài đặt 12h trưa để né mọi lỗi làm tròn hoặc múi giờ của hệ điều hành
+            m.setHours(12, 0, 0, 0); 
+            return m; 
+        }
+
+        function generateWeekDays(m) { 
+            let days = []; 
+            for(let i=0; i<7; i++) { 
+                let d = new Date(m); 
+                d.setDate(m.getDate() + i); 
+                days.push({date: d, status: 'tu-do'}); 
+            } 
+            return days; 
+        }
+        // =========================================================================================
+
         function calculateTotal() { return weekDays.reduce((acc,day)=>acc+WEIGHTS[day.status],0); }
 
         function updateTotalAndWarning() {
@@ -130,9 +163,21 @@
         }
 
         function onMondayChange(val) {
-            let d = val ? new Date(val) : new Date();
+            let d;
+            if (val) {
+                // Tách thủ công chuỗi YYYY-MM-DD để tránh JS tự động ép về chuẩn giờ Quốc tế
+                const parts = val.split('-');
+                d = new Date(parts[0], parts[1] - 1, parts[2], 12, 0, 0);
+            } else {
+                d = new Date();
+                d.setHours(12, 0, 0, 0);
+            }
+            
             currentMonday = getMondayOfWeek(d);
-            mondayPicker.value = currentMonday.toISOString().slice(0,10);
+            
+            // SỬA LỖI Ở ĐÂY: Dùng toLocalISODate thay vì toISOString()
+            mondayPicker.value = toLocalISODate(currentMonday);
+            
             weekDays = generateWeekDays(currentMonday);
             let start = formatDateVN(weekDays[0].date);
             let end = formatDateVN(weekDays[6].date);
@@ -154,7 +199,9 @@
             const employeeName = prompt('Nhập họ tên của bạn:');
             if(!employeeName) { alert('Vui lòng nhập họ tên'); return; }
 
-            const weekStart = weekDays[0].date.toISOString().slice(0,10); 
+            // SỬA LỖI Ở ĐÂY: Gửi dữ liệu chuẩn YYYY-MM-DD lên Google Sheets
+            const weekStart = toLocalISODate(weekDays[0].date); 
+            
             const dayValues = weekDays.map(d => d.status);
 
             const formData = new URLSearchParams();
@@ -169,20 +216,32 @@
             formData.append('dayCn', dayValues[6]);
 
             try {
+                // Hiệu ứng loading
+                const originalText = submitBtn.textContent;
+                submitBtn.textContent = 'Đang gửi...';
+                submitBtn.disabled = true;
+
                 const response = await fetch(SCRIPT_URL, {
                     method: 'POST',
                     body: formData
                 });
                 const result = await response.json();
+                
                 if(result.success) {
                     successMsg.style.display = 'block';
                     successMsg.textContent = '✅ Gửi thành công!';
                     setTimeout(()=>successMsg.style.display='none', 3000);
+                    resetAllDays(); // Xóa trắng form sau khi gửi
                 } else {
                     alert('Gửi thất bại: ' + (result.error || 'Lỗi không xác định'));
                 }
+                
+                submitBtn.textContent = originalText;
+                submitBtn.disabled = false;
             } catch(e) {
                 alert('Lỗi kết nối: ' + e.message);
+                submitBtn.textContent = '📨 Gửi yêu cầu';
+                submitBtn.disabled = false;
             }
         });
     })();
