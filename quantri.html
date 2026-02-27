@@ -4,48 +4,150 @@
     <meta charset="UTF-8">
     <title>Quản trị lịch làm việc</title>
     <style>
-        * { box-sizing: border-box; font-family: 'Segoe UI', sans-serif; }
-        body { background: #f0f5fa; margin: 0; padding: 20px; }
-        .container { max-width: 1400px; margin: 0 auto; }
-        h1 { color: #0b2b4b; }
-        .login { background: white; border-radius: 60px; padding: 20px; margin-bottom: 30px; display: flex; gap: 15px; align-items: center; box-shadow: 0 5px 15px rgba(0,0,0,0.05); }
-        .login input { flex: 1; padding: 12px 20px; border: 2px solid #cbdae9; border-radius: 40px; font-size: 16px; }
-        .login button { background: #1b4f72; color: white; border: none; padding: 12px 30px; border-radius: 40px; font-size: 16px; cursor: pointer; }
-        .login button:hover { background: #144a6f; }
+        * { box-sizing: border-box; font-family: 'Segoe UI', sans-serif; margin: 0; padding: 0; }
+        body { background: #f0f5fa; min-height: 100vh; display: flex; justify-content: center; align-items: center; padding: 20px; }
+        
+        /* Popup đăng nhập */
+        .login-popup {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            transition: opacity 0.3s ease;
+        }
+        .login-popup.hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+        .popup-box {
+            background: white;
+            width: 90%;
+            max-width: 450px;
+            border-radius: 40px;
+            padding: 30px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.2);
+            text-align: center;
+        }
+        .popup-row {
+            margin: 25px 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .popup-row h1 {
+            color: #0b2b4b;
+            font-size: 28px;
+            margin: 0;
+        }
+        .popup-row input {
+            width: 100%;
+            padding: 15px 20px;
+            border: 2px solid #cbdae9;
+            border-radius: 60px;
+            font-size: 18px;
+            transition: border-color 0.3s;
+        }
+        .popup-row input:focus {
+            border-color: #2a7faa;
+            outline: none;
+        }
+        .popup-row button {
+            background: linear-gradient(145deg, #1b4f72, #144a6f);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 60px;
+            font-size: 20px;
+            font-weight: 600;
+            width: 100%;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            box-shadow: 0 5px 15px rgba(0,55,100,0.2);
+        }
+        .popup-row button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(0,55,100,0.3);
+        }
+
+        /* Phần nội dung chính */
+        .main-content {
+            width: 100%;
+            max-width: 1400px;
+            margin: 0 auto;
+            display: none;
+        }
+        .main-content.visible {
+            display: block;
+        }
+        .header-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
         .btn-export {
             background: #28a745;
             color: white;
             border: none;
-            padding: 12px 20px;
+            padding: 12px 25px;
             border-radius: 40px;
             font-size: 16px;
-            cursor: pointer;
             font-weight: 600;
-            margin-left: 10px;
+            cursor: pointer;
+            transition: background 0.2s;
         }
         .btn-export:hover { background: #218838; }
+        
         table { width: 100%; border-collapse: collapse; background: white; border-radius: 20px; overflow: hidden; box-shadow: 0 5px 15px rgba(0,0,0,0.05); }
-        th { background: #144a6f; color: white; padding: 12px; font-size: 15px; }
-        td { padding: 8px; border: 1px solid #dde9f2; vertical-align: middle; }
+        th { background: #144a6f; color: white; padding: 8px 12px; font-size: 15px; vertical-align: middle; }
+        th .day-number {
+            display: block;
+            font-size: 13px;
+            font-weight: 400;
+            color: #d0e4f0;
+            margin-top: 4px;
+        }
+        td { padding: 8px; border: 1px solid #dde9f2; vertical-align: middle; text-align: center; }
         .employee-row { background: #f8fcff; }
         .manager-row { background: #fff; }
-        .employee-row td { font-weight: 500; color: #0b2b4b; }
         .manager-row select { width: 100%; padding: 6px; border-radius: 30px; border: 1px solid #b0c8dd; background: white; }
         .status-pending { background: #fff3cd; color: #856404; padding: 4px 8px; border-radius: 30px; font-size: 13px; }
         .status-approved { background: #d4edda; color: #155724; padding: 4px 8px; border-radius: 30px; font-size: 13px; }
         .btn-update { background: #1b4f72; color: white; border: none; padding: 6px 15px; border-radius: 40px; cursor: pointer; font-size: 14px; }
         .btn-update:hover { background: #144a6f; }
-        .message { background: #d1ecf1; color: #0c5460; padding: 12px; border-radius: 60px; margin-top: 20px; display: none; }
-        .error { background: #f8d7da; color: #a11f2c; }
         .loading { text-align: center; padding: 40px; font-size: 18px; color: #2a7faa; }
+        .week-range {
+            font-weight: 600;
+            color: #0b2b4b;
+        }
     </style>
 </head>
 <body>
-<div class="container">
-    <h1>🔐 Quản trị lịch làm việc</h1>
-    <div class="login">
-        <input type="password" id="passwordInput" placeholder="Nhập mật khẩu" value="admin123">
-        <button id="loginBtn">Xem dữ liệu</button>
+
+<!-- Popup đăng nhập -->
+<div id="loginPopup" class="login-popup">
+    <div class="popup-box">
+        <div class="popup-row">
+            <h1>🔐 Quản trị lịch làm việc</h1>
+        </div>
+        <div class="popup-row">
+            <input type="password" id="passwordInput" placeholder="Nhập mật khẩu" value="admin123">
+        </div>
+        <div class="popup-row">
+            <button id="loginBtn">Xem dữ liệu</button>
+        </div>
+    </div>
+</div>
+
+<!-- Nội dung chính -->
+<div id="mainContent" class="main-content">
+    <div class="header-bar">
+        <h1>📊 Dữ liệu đăng ký lịch làm việc</h1>
         <button id="exportBtn" class="btn-export">📸 Xuất báo cáo (đã duyệt)</button>
     </div>
     <div id="dataArea"></div>
@@ -54,12 +156,14 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script>
     const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyPaYj1MeoF2p_NaaHmnKO1mG8arsAVMlUSaftBMTKs4d2aye7tqwFq-MISjLE8j6bL/exec';
-    const loginBtn = document.getElementById('loginBtn');
+    const loginPopup = document.getElementById('loginPopup');
+    const mainContent = document.getElementById('mainContent');
     const passwordInput = document.getElementById('passwordInput');
+    const loginBtn = document.getElementById('loginBtn');
     const dataArea = document.getElementById('dataArea');
     const exportBtn = document.getElementById('exportBtn');
 
-    // Ánh xạ từ mã (trong sheet) sang tên tiếng Việt
+    // Ánh xạ mã -> tên tiếng Việt
     const CODE_TO_LABEL = {
         'tu-do': 'Tự do',
         'lam-sang': 'Làm sáng',
@@ -71,32 +175,78 @@
     };
     const STATUS_CODES = Object.keys(CODE_TO_LABEL);
 
+    // Hàm tính ngày tháng từ weekStart (YYYY-MM-DD) trả về mảng 7 ngày dạng DD/MM
+    function getDayDates(weekStart) {
+        const empty = ['', '', '', '', '', '', ''];
+        if (!weekStart || typeof weekStart !== 'string') return empty;
+        
+        const parts = weekStart.split('-');
+        if (parts.length !== 3) return empty;
+        
+        const year = parseInt(parts[0], 10);
+        const month = parseInt(parts[1], 10) - 1;
+        const day = parseInt(parts[2], 10);
+        
+        if (isNaN(year) || isNaN(month) || isNaN(day)) return empty;
+        
+        const baseDate = new Date(year, month, day);
+        if (isNaN(baseDate)) return empty;
+        
+        const dates = [];
+        for (let i = 0; i < 7; i++) {
+            const d = new Date(baseDate);
+            d.setDate(baseDate.getDate() + i);
+            const dayStr = d.getDate().toString().padStart(2, '0');
+            const monthStr = (d.getMonth() + 1).toString().padStart(2, '0');
+            dates.push(`${dayStr}/${monthStr}`);
+        }
+        return dates;
+    }
+
     async function loadData(password) {
         dataArea.innerHTML = '<div class="loading">Đang tải dữ liệu...</div>';
         try {
             const response = await fetch(`${SCRIPT_URL}?password=${encodeURIComponent(password)}`);
             const data = await response.json();
             if (data.error) {
-                dataArea.innerHTML = `<div class="message error">${data.error}</div>`;
+                dataArea.innerHTML = `<div style="text-align:center;color:#a11f2c;">${data.error}</div>`;
                 return;
             }
             if (!Array.isArray(data) || data.length === 0) {
-                dataArea.innerHTML = '<p>Chưa có dữ liệu.</p>';
+                dataArea.innerHTML = '<p style="text-align:center;">Chưa có dữ liệu.</p>';
                 return;
             }
             renderTable(data);
         } catch (e) {
-            dataArea.innerHTML = `<div class="message error">Lỗi kết nối: ${e.message}</div>`;
+            dataArea.innerHTML = `<div style="text-align:center;color:#a11f2c;">Lỗi kết nối: ${e.message}</div>`;
         }
     }
 
     function renderTable(rows) {
-        let html = '<table><thead><tr><th>STT</th><th>Họ tên</th><th>Tuần</th><th>Thứ 2</th><th>Thứ 3</th><th>Thứ 4</th><th>Thứ 5</th><th>Thứ 6</th><th>Thứ 7</th><th>Chủ nhật</th><th>Trạng thái</th><th></th></tr></thead><tbody>';
+        // Lấy tuần của nhân viên đầu tiên (cột C) để làm ngày tháng cho tiêu đề
+        const firstWeekStart = rows[0]['Tuần (bắt đầu)'] || '';
+        const headerDates = getDayDates(firstWeekStart); // mảng 7 ngày
+
+        // Tạo header với ngày tháng bên dưới
+        let html = '<table><thead><tr>';
+        html += '<th>STT</th>';
+        html += '<th>Họ tên</th>';
+        html += '<th>Tuần (từ - đến)</th>';
+        html += `<th>Thứ 2<span class="day-number">${headerDates[0]}</span></th>`;
+        html += `<th>Thứ 3<span class="day-number">${headerDates[1]}</span></th>`;
+        html += `<th>Thứ 4<span class="day-number">${headerDates[2]}</span></th>`;
+        html += `<th>Thứ 5<span class="day-number">${headerDates[3]}</span></th>`;
+        html += `<th>Thứ 6<span class="day-number">${headerDates[4]}</span></th>`;
+        html += `<th>Thứ 7<span class="day-number">${headerDates[5]}</span></th>`;
+        html += `<th>Chủ nhật<span class="day-number">${headerDates[6]}</span></th>`;
+        html += '<th>Trạng thái</th>';
+        html += '<th></th>';
+        html += '</tr></thead><tbody>';
         
         rows.forEach((row, index) => {
-            const rowIndex = index + 2; // Dòng thực tế trong sheet
+            const rowIndex = index + 2;
             const employeeName = row['Họ tên'] || 'N/A';
-            const weekStart = row['Tuần (bắt đầu)'] || '';
+            const weekStart = row['Tuần (bắt đầu)'] || ''; // cột C
             const day2Code = row['Thứ 2'] || 'tu-do';
             const day3Code = row['Thứ 3'] || 'tu-do';
             const day4Code = row['Thứ 4'] || 'tu-do';
@@ -106,6 +256,10 @@
             const dayCnCode = row['Chủ nhật'] || 'tu-do';
             const status = row['Trạng thái'] || 'Chờ duyệt';
 
+            // Tính ngày tháng cho cột "Tuần (từ - đến)"
+            const dayDates = getDayDates(weekStart);
+            const weekRangeText = (dayDates[0] && dayDates[6]) ? `từ ${dayDates[0]} đến ${dayDates[6]}` : weekStart;
+
             const day2Label = CODE_TO_LABEL[day2Code] || day2Code;
             const day3Label = CODE_TO_LABEL[day3Code] || day3Code;
             const day4Label = CODE_TO_LABEL[day4Code] || day4Code;
@@ -113,17 +267,23 @@
             const day6Label = CODE_TO_LABEL[day6Code] || day6Code;
             const day7Label = CODE_TO_LABEL[day7Code] || day7Code;
             const dayCnLabel = CODE_TO_LABEL[dayCnCode] || dayCnCode;
-            
+
             // Dòng nhân viên
             html += `<tr class="employee-row" data-rowindex="${rowIndex}">`;
             html += `<td>${index + 1}</td>`;
             html += `<td>${employeeName}</td>`;
-            html += `<td>${weekStart}</td>`;
-            html += `<td>${day2Label}</td><td>${day3Label}</td><td>${day4Label}</td><td>${day5Label}</td><td>${day6Label}</td><td>${day7Label}</td><td>${dayCnLabel}</td>`;
+            html += `<td class="week-range">${weekRangeText}</td>`;
+            html += `<td>${day2Label}</td>`;
+            html += `<td>${day3Label}</td>`;
+            html += `<td>${day4Label}</td>`;
+            html += `<td>${day5Label}</td>`;
+            html += `<td>${day6Label}</td>`;
+            html += `<td>${day7Label}</td>`;
+            html += `<td>${dayCnLabel}</td>`;
             html += `<td><span class="${status === 'Đã duyệt' ? 'status-approved' : 'status-pending'}">${status}</span></td>`;
             html += `<td></td></tr>`;
 
-            // Dòng quản lý
+            // Dòng quản lý (dropdown)
             const createSelect = (selectedCode) => {
                 let options = '';
                 STATUS_CODES.forEach(code => {
@@ -189,7 +349,7 @@
         }
     };
 
-    // Hàm xuất báo cáo
+    // Xuất báo cáo
     exportBtn.addEventListener('click', function() {
         const approvedRows = document.querySelectorAll('.employee-row .status-approved');
         if (approvedRows.length === 0) {
@@ -197,7 +357,6 @@
             return;
         }
 
-        // Lấy tất cả các dòng .employee-row có trạng thái "Đã duyệt"
         const rowsToExport = [];
         document.querySelectorAll('.employee-row').forEach(row => {
             const statusSpan = row.querySelector('.status-approved');
@@ -206,26 +365,22 @@
             }
         });
 
-        // Tạo bảng tạm
         const tempTable = document.createElement('table');
         tempTable.style.borderCollapse = 'collapse';
         tempTable.style.width = '100%';
         tempTable.style.background = 'white';
         tempTable.style.fontSize = '14px';
 
-        // Clone header và xóa ô cuối (cột trống)
         const headerRow = document.querySelector('table thead tr').cloneNode(true);
-        headerRow.deleteCell(-1); // Xóa cột cuối
+        headerRow.deleteCell(-1);
         tempTable.appendChild(headerRow);
 
-        // Clone các dòng đã duyệt và xóa ô cuối
         rowsToExport.forEach(row => {
             const clonedRow = row.cloneNode(true);
-            clonedRow.deleteCell(-1); // Xóa ô cuối
+            clonedRow.deleteCell(-1);
             tempTable.appendChild(clonedRow);
         });
 
-        // Đưa bảng tạm ra ngoài màn hình để chụp
         tempTable.style.position = 'absolute';
         tempTable.style.left = '-9999px';
         document.body.appendChild(tempTable);
@@ -245,12 +400,19 @@
 
     loginBtn.addEventListener('click', () => {
         const pwd = passwordInput.value.trim();
-        if (!pwd) { alert('Nhập mật khẩu'); return; }
+        if (!pwd) {
+            alert('Nhập mật khẩu');
+            return;
+        }
+        loginPopup.classList.add('hidden');
+        mainContent.classList.add('visible');
         loadData(pwd);
     });
 
     passwordInput.addEventListener('keypress', (e) => {
-        if (e.key === 'Enter') loginBtn.click();
+        if (e.key === 'Enter') {
+            loginBtn.click();
+        }
     });
 </script>
 </body>
