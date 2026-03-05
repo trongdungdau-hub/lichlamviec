@@ -43,7 +43,7 @@
         <span class="total-label">📊 Tổng số ngày (quy đổi):</span>
         <span class="total-value" id="totalDays">0.0</span>
     </div>
-    <div id="warningBox" class="warning-message">⚠️ Tổng số ngày vượt quá 5,5! Vui lòng điều chỉnh lại.</div>
+    <div id="warningBox" class="warning-message">⚠️ Tổng số ngày làm việc vượt quá 5,5! Vui lòng điều chỉnh lại.</div>
 
     <div class="summary" id="summaryStats"></div>
 
@@ -57,21 +57,24 @@
 
 <script>
     (function() {
-        const STATUSES = ['tu-do','lam-sang','lam-chieu','nua-ca-sang','nua-ca-chieu','nghi-ca','nghi-phep'];
+        const STATUSES = ['tu-do','lam-sang','lam-chieu','nua-ca-sang','nua-ca-chieu','nghi-ca','nghi-phep', 'nua-nghi-phep'];
         const STATUS_LABELS = {
             'tu-do':'Tự do','lam-sang':'Làm sáng','lam-chieu':'Làm chiều',
             'nua-ca-sang':'Nửa ca sáng','nua-ca-chieu':'Nửa ca chiều',
-            'nghi-ca':'Nghỉ ca','nghi-phep':'Nghỉ phép'
+            'nghi-ca':'Nghỉ ca','nghi-phep':'Nghỉ phép',
+            'nua-nghi-phep':'Nghỉ phép nửa ngày' // ĐÃ CẬP NHẬT THUẬT NGỮ
         };
         const WEIGHTS = {
             'tu-do':1.0, 'lam-sang':1.0, 'lam-chieu':1.0,
             'nua-ca-sang':0.5, 'nua-ca-chieu':0.5,
-            'nghi-ca':0.0, 'nghi-phep':1.0
+            'nghi-ca':0.0, 'nghi-phep':1.0,
+            'nua-nghi-phep':0.5 
         };
         const SUMMARY_COLORS = {
             'tu-do':'#d5e8d4','lam-sang':'#fff2cc','lam-chieu':'#fce5cd',
             'nua-ca-sang':'#d0e0e3','nua-ca-chieu':'#e1d5e7',
-            'nghi-ca':'#f4cccc','nghi-phep':'#c9daf8'
+            'nghi-ca':'#f4cccc','nghi-phep':'#c9daf8',
+            'nua-nghi-phep':'#cfe2f3' 
         };
         const MAX_DAYS = 5.5;
 
@@ -86,7 +89,6 @@
         const resetBtn = document.getElementById('resetBtn');
         const successMsg = document.getElementById('successMessage');
 
-        // ================= CÁC HÀM XỬ LÝ NGÀY THÁNG CHUẨN (KHÔNG BỊ LỆCH MÚI GIỜ) =================
         function toLocalISODate(d) {
             const year = d.getFullYear();
             const month = String(d.getMonth() + 1).padStart(2, '0');
@@ -105,7 +107,6 @@
             let diff = (day === 0) ? 6 : day - 1; 
             let m = new Date(d); 
             m.setDate(m.getDate() - diff); 
-            // Cài đặt 12h trưa để né mọi lỗi làm tròn hoặc múi giờ của hệ điều hành
             m.setHours(12, 0, 0, 0); 
             return m; 
         }
@@ -119,7 +120,6 @@
             } 
             return days; 
         }
-        // =========================================================================================
 
         function calculateTotal() { return weekDays.reduce((acc,day)=>acc+WEIGHTS[day.status],0); }
 
@@ -165,7 +165,6 @@
         function onMondayChange(val) {
             let d;
             if (val) {
-                // Tách thủ công chuỗi YYYY-MM-DD để tránh JS tự động ép về chuẩn giờ Quốc tế
                 const parts = val.split('-');
                 d = new Date(parts[0], parts[1] - 1, parts[2], 12, 0, 0);
             } else {
@@ -174,8 +173,6 @@
             }
             
             currentMonday = getMondayOfWeek(d);
-            
-            // SỬA LỖI Ở ĐÂY: Dùng toLocalISODate thay vì toISOString()
             mondayPicker.value = toLocalISODate(currentMonday);
             
             weekDays = generateWeekDays(currentMonday);
@@ -195,13 +192,11 @@
         const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyPaYj1MeoF2p_NaaHmnKO1mG8arsAVMlUSaftBMTKs4d2aye7tqwFq-MISjLE8j6bL/exec';
 
         submitBtn.addEventListener('click', async function() {
-            if(calculateTotal() > MAX_DAYS) { alert('Tổng ngày vượt quá 5,5!'); return; }
+            if(calculateTotal() > MAX_DAYS) { alert('Tổng ngày làm việc vượt quá 5,5!'); return; }
             const employeeName = prompt('Nhập họ tên của bạn:');
             if(!employeeName) { alert('Vui lòng nhập họ tên'); return; }
 
-            // SỬA LỖI Ở ĐÂY: Gửi dữ liệu chuẩn YYYY-MM-DD lên Google Sheets
             const weekStart = toLocalISODate(weekDays[0].date); 
-            
             const dayValues = weekDays.map(d => d.status);
 
             const formData = new URLSearchParams();
@@ -216,7 +211,6 @@
             formData.append('dayCn', dayValues[6]);
 
             try {
-                // Hiệu ứng loading
                 const originalText = submitBtn.textContent;
                 submitBtn.textContent = 'Đang gửi...';
                 submitBtn.disabled = true;
@@ -231,7 +225,7 @@
                     successMsg.style.display = 'block';
                     successMsg.textContent = '✅ Gửi thành công!';
                     setTimeout(()=>successMsg.style.display='none', 3000);
-                    resetAllDays(); // Xóa trắng form sau khi gửi
+                    resetAllDays(); 
                 } else {
                     alert('Gửi thất bại: ' + (result.error || 'Lỗi không xác định'));
                 }
